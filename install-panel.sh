@@ -76,7 +76,7 @@ ASSUME_SSL=false
 CONFIGURE_LETSENCRYPT=false
 
 # download URLs
-PANEL_DL_URL="https://github.com/pterodactyl/panel/releases/download/v1.0.0-rc.6/panel.tar.gz" # REVERT THIS BEFORE MERGING!
+PANEL_DL_URL="https://github.com/pterodactyl/panel/releases/download/v1.0.0-rc.5/panel.tar.gz" # REVERT THIS BEFORE MERGING!
 CONFIGS_URL="https://raw.githubusercontent.com/vilhelmprytz/pterodactyl-installer/pterodactyl-1.0/configs" # REVERT THIS BEFORE MERGING!
 
 # apt sources path
@@ -91,7 +91,14 @@ CONFIGURE_FIREWALL_CMD=false
 # firewall status
 CONFIGURE_FIREWALL=false
 
-# visual functions
+######################
+## visual functions ##
+######################
+
+# shellcheck source=progress_bar.sh
+source <(curl -s https://raw.githubusercontent.com/Linux123123/pterodactyl-installer/pterodactyl-1.0/progress_bar.sh) || exit 1  # revert before merge
+# source progress_bar.sh # for debugging
+
 function print_error {
   COLOR_RED='\033[0;31m'
   COLOR_NC='\033[0m'
@@ -621,6 +628,7 @@ function firewall_ufw {
 
   ufw enable
   ufw status numbered | sed '/v6/d'
+  draw_progress_bar 31
 }
 
 function firewall_firewalld {
@@ -658,6 +666,7 @@ function firewall_firewalld {
 
   echo "* Firewall-cmd installed"
   print_brake 70
+  draw_progress_bar 31
 }
 
 function letsencrypt {
@@ -875,6 +884,10 @@ function main {
   # detect distro
   detect_distro
 
+  # Enable progress bar
+
+  bar::start
+
   print_brake 70
   echo "* Pterodactyl panel installation script"
   echo "*"
@@ -887,10 +900,11 @@ function main {
   print_brake 70
 
   # checks if the system is compatible with this installation script
-  check_os_comp
 
   # set database credentials
   print_brake 72
+  draw_progress_bar 1
+
   echo "* Database configuration."
   echo ""
   echo "* This will be the credentials used for commuication between the MySQL"
@@ -903,13 +917,19 @@ function main {
 
   [ -z "$MYSQL_DB_INPUT" ] && MYSQL_DB="panel" || MYSQL_DB=$MYSQL_DB_INPUT
 
+  draw_progress_bar 2
+
   echo -n "* Username (pterodactyl): "
   read -r MYSQL_USER_INPUT
 
   [ -z "$MYSQL_USER_INPUT" ] && MYSQL_USER="pterodactyl" || MYSQL_USER=$MYSQL_USER_INPUT
 
+  draw_progress_bar 4
+
   # MySQL password input
   password_input MYSQL_PASSWORD "Password (use something strong): " "MySQL password cannot be empty"
+
+  draw_progress_bar 6
 
   valid_timezones="$(timedatectl list-timezones)"
   echo "* List of valid timezones here $(hyperlink "https://www.php.net/manual/en/timezones.php")"
@@ -920,17 +940,28 @@ function main {
     [ -z "$timezone_input" ] && timezone="Europe/Stockholm" || timezone=$timezone_input # because köttbullar!
   done
 
+  draw_progress_bar 8
+
   required_input email "Provide the email address that will be used to configure Let's Encrypt and Pterodactyl: " "Email cannot be empty"
+
+  draw_progress_bar 10
 
   echo -n "* Would you like to set up email credentials so that Pterodactyl can send emails to users (usually not required)? (y/N): "
   read -r mailneeded
 
+  draw_progress_bar 12
+
   # Initial admin account
   required_input user_email "Email address for the initial admin account: " "Email cannot be empty"
+  draw_progress_bar 14
   required_input user_username "Username for the initial admin account: " "Username cannot be empty"
+  draw_progress_bar 16
   required_input user_firstname "First name for the initial admin account: " "Name cannot be empty"
+  draw_progress_bar 18
   required_input user_lastname "Last name for the initial admin account: " "Name cannot be empty"
+  draw_progress_bar 20
   password_input user_password "Password for the initial admin account: " "Password cannot be empty"
+  draw_progress_bar 22
 
   print_brake 72
 
@@ -941,6 +972,8 @@ function main {
 
       [ -z "$FQDN" ] && print_error "FQDN cannot be empty"
   done
+
+  draw_progress_bar 24
 
   # UFW is available for Ubuntu/Debian
   # Let's Encrypt is available for Ubuntu/Debian
@@ -983,6 +1016,8 @@ function main {
     ask_letsencrypt
   fi
 
+  draw_progress_bar 26
+
   # If it's already true, this should be a no-brainer
   if [ "$CONFIGURE_LETSENCRYPT" == false ]; then
     echo "* Let's Encrypt is not going to be automatically configured by this script (either unsupported yet or user opted out)."
@@ -997,8 +1032,12 @@ function main {
     fi
   fi
 
+  draw_progress_bar 28
+
   # summary
   summary
+
+  draw_progress_bar 30
 
   # confirm installation
   echo -e -n "\n* Initial configuration completed. Continue with installation? (y/N): "
@@ -1018,13 +1057,6 @@ function summary {
   echo "* Database name: $MYSQL_DB"
   echo "* Database user: $MYSQL_USER"
   echo "* Database password: (censored)"
-  echo "* Timezone: $timezone"
-  echo "* Email: $email"
-  echo "* User email: $user_email"
-  echo "* Username: $user_username"
-  echo "* First name: $user_firstname"
-  echo "* Last name: $user_lastname"
-  echo "* User password: (censored)"
   echo "* Hostname/FQDN: $FQDN"
   echo "* Configure Firewall? $CONFIGURE_FIREWALL"
   echo "* Configure Let's Encrypt? $CONFIGURE_LETSENCRYPT"
@@ -1033,6 +1065,7 @@ function summary {
 }
 
 function goodbye {
+  bar::stop
   print_brake 62
   echo "* Panel installation completed"
   echo "*"
